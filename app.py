@@ -332,7 +332,7 @@ def create_main_chart(df, current_price, pred_low, pred_high, n_bars=168):
             mode='lines',
             line=dict(color='rgba(14, 203, 129, 0.85)', width=1.5, dash='dash'),
             name=f'High {pred_high:,.0f}',
-            hovertemplate='<b>95% high</b><br>$%{y:,.2f}<extra></extra>',
+            hovertemplate='95% high\n$%{y:,.2f}<extra></extra>',
         ),
         row=1, col=1,
     )
@@ -343,7 +343,7 @@ def create_main_chart(df, current_price, pred_low, pred_high, n_bars=168):
             mode='lines',
             line=dict(color='rgba(246, 70, 93, 0.85)', width=1.5, dash='dash'),
             name=f'Low {pred_low:,.0f}',
-            hovertemplate='<b>95% low</b><br>$%{y:,.2f}<extra></extra>',
+            hovertemplate='95% low\n$%{y:,.2f}<extra></extra>',
         ),
         row=1, col=1,
     )
@@ -364,8 +364,16 @@ def create_main_chart(df, current_price, pred_low, pred_high, n_bars=168):
         row=1, col=1,
     )
 
-    # Gold line + gradient fill; tooltip uses hourly close as "the price" for that bar
-    ohlc = d[['open', 'high', 'low', 'close']].to_numpy()
+    # Gold line + gradient fill — plain-text hover (Streamlit can escape HTML in hovertemplate)
+    _price_hover = [
+        (
+            f"{ts.strftime('%Y-%m-%d')}  {ts.strftime('%I:%M:%S %p')} UTC\n"
+            f"$ {float(row['close']):,.2f}\n"
+            f"Hourly close · O {float(row['open']):,.2f} · H {float(row['high']):,.2f} · "
+            f"L {float(row['low']):,.2f}"
+        )
+        for ts, row in d.iterrows()
+    ]
     _show_markers = len(d) <= 48
     fig.add_trace(
         go.Scatter(
@@ -382,43 +390,31 @@ def create_main_chart(df, current_price, pred_low, pred_high, n_bars=168):
                 line=dict(color=_BINANCE_TEXT, width=1),
                 opacity=1 if _show_markers else 0,
             ),
-            customdata=ohlc,
+            hovertext=_price_hover,
             hoverlabel=dict(
                 bgcolor=_BINANCE_PANEL,
                 bordercolor=_BINANCE_GRID,
                 font=dict(color=_BINANCE_TEXT, size=13),
                 align='left',
             ),
-            hovertemplate=(
-                f'<div style="min-width:210px;padding:2px 0">'
-                f'<div style="display:flex;justify-content:space-between;gap:20px;'
-                f'color:{_BINANCE_MUTED};font-size:11px;margin-bottom:8px">'
-                f'<span>%{{x|%Y-%m-%d}}</span>'
-                f'<span>%{{x|%I:%M:%S %p}} UTC</span>'
-                f'</div>'
-                f'<div style="color:{_BINANCE_TEXT};font-size:17px;font-weight:700">'
-                f'$ %{{customdata[3]:,.2f}}'
-                f'</div>'
-                f'<div style="color:{_BINANCE_MUTED};font-size:10px;margin-top:6px">'
-                f'Hourly close · Open %{{customdata[0]:,.2f}} · High %{{customdata[1]:,.2f}} · '
-                f'Low %{{customdata[2]:,.2f}}'
-                f'</div></div><extra></extra>'
-            ),
+            hovertemplate='%{text}<extra></extra>',
         ),
         row=1, col=1,
     )
 
+    _vol_hover = [
+        f"{ts.strftime('%Y-%m-%d %H:%M')} UTC\nVol {float(row['volume']):,.2f} BTC"
+        for ts, row in d.iterrows()
+    ]
     fig.add_trace(
         go.Bar(
             x=d.index,
             y=d['volume'],
             name='Volume',
             marker_color='rgba(132, 142, 156, 0.35)',
+            hovertext=_vol_hover,
             hoverlabel=dict(bgcolor=_BINANCE_PANEL, bordercolor=_BINANCE_GRID, font_color=_BINANCE_TEXT),
-            hovertemplate=(
-                f'<span style="color:{_BINANCE_MUTED}">%{{x|%Y-%m-%d %H:%M}} UTC</span><br>'
-                f'Vol %{{y:,.2f}} BTC<extra></extra>'
-            ),
+            hovertemplate='%{text}<extra></extra>',
         ),
         row=2, col=1,
     )
@@ -522,7 +518,7 @@ def create_volatility_chart(df):
             line=dict(color='#00d4ff', width=2),
             fill='tozeroy',
             fillcolor='rgba(0, 212, 255, 0.2)',
-            hovertemplate='<b>%{x|%H:%M}</b><br>Volatility: %{y:.2f}%<extra></extra>'
+            hovertemplate='%{x|%H:%M}\nVolatility: %{y:.2f}%<extra></extra>'
         )
     )
     
@@ -556,7 +552,7 @@ def create_history_chart(history_df):
                 name='Actual Price',
                 mode='markers',
                 marker=dict(color='#ffaa00', size=8, symbol='circle'),
-                hovertemplate='<b>%{x|%H:%M}</b><br>Actual: $%{y:,.2f}<extra></extra>'
+                hovertemplate='%{x|%H:%M}\nActual: $%{y:,.2f}<extra></extra>'
             )
         )
     
@@ -568,7 +564,7 @@ def create_history_chart(history_df):
             name='95% High',
             mode='lines',
             line=dict(color='rgba(0, 255, 136, 0.5)', width=1, dash='dash'),
-            hovertemplate='<b>%{x|%H:%M}</b><br>High: $%{y:,.2f}<extra></extra>'
+            hovertemplate='%{x|%H:%M}\nHigh: $%{y:,.2f}<extra></extra>'
         )
     )
     
@@ -582,7 +578,7 @@ def create_history_chart(history_df):
             line=dict(color='rgba(255, 68, 68, 0.5)', width=1, dash='dash'),
             fill='tonexty',
             fillcolor='rgba(0, 212, 255, 0.1)',
-            hovertemplate='<b>%{x|%H:%M}</b><br>Low: $%{y:,.2f}<extra></extra>'
+            hovertemplate='%{x|%H:%M}\nLow: $%{y:,.2f}<extra></extra>'
         )
     )
     
